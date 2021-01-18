@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 
+
 class Node:
     """
     A representation of a node in an energy grid.
@@ -25,41 +26,40 @@ class Node:
     - Longterm: Demand forecasting (with weather?)
         - Reflected in cost fun, i.e. desire to retain or get rid of excesses
     """
-    
+
     def __init__(self, latlon, storage_capacity=None, neighbors=None, name=None):
         self.latlon = latlon
         self.storage_capacity = storage_capacity
         self.name = np.random.randint(1e5, 1e6) if name is None else name
         self._log = []
-        
+
         # Some scaling factor for a node's desire to trade energy (not just its ability to do so)
         self.cost = 1
-        
+
         # Should be a pd.df with obj and cost colums?
         self.neighbors = pd.DataFrame(columns=["nodes", "resistance"])
         self.stored = 0  # W
-        
+
         # In this timestep, how much demand/excess do we have?
-#         self.excess = 0  # W
-#         self.demand = 0   # W?
-        
+        #         self.excess = 0  # W
+        #         self.demand = 0   # W?
+
         """
         Could have generation/demand curves as well? Will prob need predictive stuff here
         self.
         """
-        
+
     def get_transaction_logs(self, t_start=None, t_end=None):
         log = pd.DataFrame(self._log).set_index("timestamp")
-        
+
         if t_start is not None:
-            log = log.loc[pd.to_datetime(t_start):]
-            
+            log = log.loc[pd.to_datetime(t_start) :]
+
         if t_end is not None:
-            log = log.loc[:pd.to_datetime(t_end)]
-            
+            log = log.loc[: pd.to_datetime(t_end)]
+
         return log
-            
-        
+
     def _cost_func(self, candidates, watts_reqd=None):
         """
         Metric by which to evaluate appeal of different nodes' availabilities
@@ -70,13 +70,13 @@ class Node:
         Need to extend this to multi-step energy retrievals
         Is this directional?
         """
-        
+
         # Need to rethink this
         # Want it to minimize scores of nodes with low resistances and costs
-#         cost_func = lambda n: (1 - n.resistance) * watts_reqd * n.cost
-#         cost = candidates.apply(lambda n: n.resistance * n.cost)
-#         cost = candidates.resistance * candidates.apply(lambda n: n.cost)
-        cost = candidates.resistance  #* candidates.apply(lambda n: n.cost)
+        #         cost_func = lambda n: (1 - n.resistance) * watts_reqd * n.cost
+        #         cost = candidates.apply(lambda n: n.resistance * n.cost)
+        #         cost = candidates.resistance * candidates.apply(lambda n: n.cost)
+        cost = candidates.resistance  # * candidates.apply(lambda n: n.cost)
         return cost
 
     def _get_sources(self, alg="1hop"):
@@ -91,17 +91,17 @@ class Node:
         if alg is "1hop":
             sources = self.neighbors.copy(deep=True)
             sources["cost"] = self._cost_func(sources)
-            
+
             sources.sort_values(by="cost", ascending=True, inplace=True)
-            
+
             # This assumes that other nodes are all up to date on their own supply situation
             sources["excess"] = sources.nodes.apply(lambda node: node.stored)
             return sources
-        
+
         elif alg is "bfs":
             # Needs to be BFS, not DFS, so we know the range of available costs
             return
-        
+
     def _send_to_neighbors(self, timestamp=None):
         """
         If we're overloaded, send out excess to neighbors with storage capacity.
@@ -109,7 +109,7 @@ class Node:
         Should add a cost function here, too, both in dollars and watts.
         """
         excess = self.stored - self.storage_capacity
-        assert excess > 0, "No excess"   
+        assert excess > 0, "No excess"
 
     def _pull_from_neighbors(self, demand=None, max_n_sources=1, timestamp=None):
         """
@@ -140,66 +140,69 @@ class Node:
         max_n_sources = min([max_n_sources, 1])
         if max_n_sources == 1:
             # Take the lowest cost (as sorted above) neighbor with enough excess available
-            source = sources.loc[sources.excess >= (demand)].iloc[0]
-#             source.node.excess -= demand
-#             self.demand -= demand
-            source.nodes.stored -= demand
+            source = sources.loc[sources.excess >= (demand)].iloc[0].nodes
+            source.stored -= demand
             self.stored = 0
-        
+
             print(f"{self.name} pulled {demand} watts from node {source.name}")
         else:
             print("Not implemented")
-            
 
-        log_vec = {"source": source.nodes, "dest": self, "amount": demand, "timestamp": timestamp}
+        log_vec = {
+            "source": source,
+            "dest": self,
+            "amount": demand,
+            "timestamp": timestamp,
+        }
         self._log.append(log_vec)
-        source.nodes._log.append(log_vec)
+        source._log.append(log_vec)
 
     def add_neighbors(self, new_nodes, resistances=None):
         # Should probably add a check to make sure we're not passing self
-        
+
         resistances = np.zeros_like(new_nodes) if resistances is None else resistances
 
         new_neighbors = pd.DataFrame({"nodes": new_nodes, "resistance": resistances})
         self.neighbors = pd.concat((self.neighbors, new_neighbors))
         return
-    
+
     def evaluate_demands(self, new_demand=0, new_supply=0):
         # Need 0 <= self.stored <= self.storage_capacity
-        self.stored += (new_supply - new_demand)
-        
+        self.stored += new_supply - new_demand
+
     def resolve_imbalances(self, timestamp):
         if self.stored < 0:
             self._pull_from_neighbors(timestamp=timestamp)
-        
+
         # Down the road, should replace this with something curvier, not boxy
         elif self.stored > self.storage_capacity:
             self._send_to_neighbors(timestamp=timestamp)
         else:
             # We're good
             pass
-        
+
     def step(self, new_supply, new_demand, timestamp=None):
         self.evaluate_demands(new_supply, new_demand)
         self.resolve_imbalances(timestamp)
-        
+
 
 # A couple example subclasses of the Nodes to more intuitively represent some of the nodes
 class OldHome(Node):
     """
     An old home, with no storage or generation abilities of its own.
     """
-    
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.storage_capacity = 0
         self.type = "OldHome"
 
+
 class PowerPlant(Node):
     """
     An old home, with no storage or generation abilities of its own.
     """
-    
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.storage_capacity = 1e8  # Some big number

@@ -1,33 +1,40 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-
+import geopandas as gpd
 import geoviews as gv
 from bokeh.io import output_notebook
 from cartopy import crs
+
 output_notebook()
-gv.extension('bokeh')
+gv.extension("bokeh")
+
+from tools import generate_usage_data
+
 
 class EnergyGrid:
     """
     A representation of a notional energy grid
     """
-    
+
     def __init__(self, nodes):
         self.nodes = nodes
-        
-    
+
     def _update_flow_matrix(self):
         # Given some set of energy demands and a distribution policy, do something
         return
-    
-    def make_neighbors(self, connection_matrix=None):
-        if connection_matrix is None:
-            connection_matrix = np.zeros((len(self.nodes), len(self.nodes)))
-        np.fill_diagonal(connection_matrix, 1)
 
-        for row, node in zip(connection_matrix, self.nodes):
-            node.add_neighbors(nodes, resistances=row)
+    def make_neighbors(self, resistance_matrix=None):
+        if resistance_matrix is None:
+            resistance_matrix = np.zeros(
+                (len(self.nodes), len(self.nodes))
+            )
+        np.fill_diagonal(resistance_matrix, 1)
+
+        # TODO: Think about how to make this directional
+        # (i.e. houses can't send energy to power plants)
+        for row, node in zip(resistance_matrix, self.nodes):
+            node.add_neighbors(self.nodes, resistances=row)
 
     def build_grid(self, stored=None, resistance_network=None):
         """
@@ -36,16 +43,17 @@ class EnergyGrid:
         if (self.nodes == None) and (stored == None) and (resistance_network == None):
             print("Need something to build nodes off of")
             return
-        
-        resistance_network = np.zeros((n, n)) if resistance_network is None else resistance_network
+
+        resistance_network = (
+            np.zeros((n, n)) if resistance_network is None else resistance_network
+        )
         np.fill_diagonal(resistance_network, 1)
-        
+
         stored = np.zeros(n)
-        
-        
+
         return None
-    
-    def visualize(self, gif=False):
+
+    def visualize(self, gif=False, height=600, width=600):
         """
         Plot nodes and inter-node transactions.
         
@@ -64,7 +72,7 @@ class EnergyGrid:
                 "lat": [n.latlon[0] for n in self.nodes],
                 "lon": [n.latlon[1] for n in self.nodes],
                 "stored": [n.stored for n in self.nodes],
-            }, # geometry=["lat", "lon"]
+            },
         )
 
         # EsriImagery, StamenWatercolor
@@ -73,34 +81,47 @@ class EnergyGrid:
 
         # Plot the nodes
         r *= gv.Points(coords, vdims="stored").opts(
-            tools=["hover"], width=1600, projection=crs.Robinson()
+            tools=["hover"], height=height, width=width,
+#             projection=crs.Robinson()
         )
 
         # Plot all the transactions
-        transactions = pd.DataFrame.from_records(
-            np.concatenate([n.log for n in nodes])
+        df = pd.concat(
+            [n.get_transaction_logs() for n in self.nodes]
         ).drop_duplicates()
 
 
-        # Really gross, and probably not totally accurate, but something for now
-        df = pd.DataFrame.from_records(np.concatenate([n.log for n in self.nodes]))
-        r *= gv.Path([[f, t] for f, t in zip(df.source.apply(lambda t: t.latlon), df.dest.apply(lambda t: t.latlon))])
+        r *= gv.Path(
+            [
+                [f, t]
+                for f, t in zip(
+                    df.source.apply(lambda t: t.latlon),
+                    df.dest.apply(lambda t: t.latlon),
+                )
+            ]
+        )
 
         return r
-    
+
     def run_simulation(self):
         """
         Step time forward, managing the demands of each node during that timestep
         """
-        
+
         # Make a dict of consumption data, keyed by node
-        d = [generate_usage_data(n) for n in nodes]
+        d = [generate_usage_data(n) for n in self.nodes]
         consumption_data = {n[0]: n[1] for n in d}
 
-        timesteps = np.unique(np.concatenate([ndata.index.to_numpy() for ndata in consumption_data.values()]))
-        
+        timesteps = np.unique(
+            np.concatenate(
+                [ndata.index.to_numpy() for ndata in consumption_data.values()]
+            )
+        )
+
         for t in timesteps:
-            [node.evaluate_demands(*consumption_data[node].loc[t]) for node in self.nodes]
+            [
+                node.evaluate_demands(*consumption_data[node].loc[t])
+                for node in self.nodes
+            ]
             [node.resolve_imbalances(t) for node in self.nodes]
         return
-        
