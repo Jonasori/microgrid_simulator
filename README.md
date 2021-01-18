@@ -7,3 +7,5 @@ This is one of the more intriguing potential applications of ML/reactive algorit
 To try it out, simply pip install it and start playing with ```overview.ipynb```.
 
 ```pip install -e ./```
+
+NB: It's worth noting that this was deliberately started/structured without a deep literature review. I want to build up my own system (and be forced to justify every decision on my own) before seeing what the current state-of-the-art is in this world. While this is obviously not an approach that is appropriate for professional work, it is a luxury afforded to me by virtue of this being a fun side project :)
