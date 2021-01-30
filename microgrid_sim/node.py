@@ -32,6 +32,7 @@ class Node:
         self.storage_capacity = storage_capacity
         self.name = np.random.randint(1e5, 1e6) if name is None else name
         self._log = []
+        self.verbose = True
 
         # Some scaling factor for a node's desire to trade energy (not just its ability to do so)
         self.cost = 1
@@ -50,7 +51,7 @@ class Node:
         """
 
     def get_transaction_logs(self, t_start=None, t_end=None):
-        log = pd.DataFrame(self._log).set_index("timestamp")
+        log = pd.DataFrame(self._log)  #.set_index("timestamp")
 
         if t_start is not None:
             log = log.loc[pd.to_datetime(t_start) :]
@@ -144,7 +145,7 @@ class Node:
             source.stored -= demand
             self.stored = 0
 
-            print(f"{self.name} pulled {round(demand, 3)} watts from node {source.name}")
+            print(f"{self.name} pulled {round(demand, 3)} watts from node {source.name}") if self.verbose else None
         else:
             print("Not implemented")
 
@@ -160,8 +161,15 @@ class Node:
     def add_neighbors(self, new_nodes, resistances=None):
         # Should probably add a check to make sure we're not passing self
 
-        resistances = np.zeros_like(new_nodes) if resistances is None else resistances
-
+        if resistances is None:
+            # Really simple Euclidean-distance based cost
+            resistances = pd.Series(
+                [n.latlon for n in new_nodes]
+            ).apply(
+                lambda ll: np.sqrt((ll[0] - self.latlon[0])**2 + (ll[1] - self.latlon[1])**2)
+            ).to_numpy()
+            resistances /= resistances.max()
+            
         new_neighbors = pd.DataFrame({"nodes": new_nodes, "resistance": resistances})
         self.neighbors = pd.concat((self.neighbors, new_neighbors))
         return

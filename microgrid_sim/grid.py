@@ -34,7 +34,8 @@ class EnergyGrid:
         # TODO: Think about how to make this directional
         # (i.e. houses can't send energy to power plants)
         for row, node in zip(resistance_matrix, self.nodes):
-            node.add_neighbors(self.nodes, resistances=row)
+#             node.add_neighbors(self.nodes, resistances=row)
+            node.add_neighbors(self.nodes, resistances=None)
 
     def build_grid(self, stored=None, resistance_network=None):
         """
@@ -66,6 +67,7 @@ class EnergyGrid:
             tools=['hover'], width=600, projection=crs.Robinson()
         )
         """
+        from geoviews import dim
 
         coords = gpd.GeoDataFrame(
             {
@@ -78,11 +80,6 @@ class EnergyGrid:
         # EsriImagery, StamenWatercolor
         r = gv.tile_sources.CartoDark()
         r = gv.tile_sources.StamenWatercolor()
-
-        # Plot the nodes
-        r *= gv.Points(coords, vdims="stored").opts(
-            tools=["hover"], height=height, width=width,
-        )
 
         # Plot all the transactions
         df = pd.concat(
@@ -98,6 +95,15 @@ class EnergyGrid:
                     df.dest.apply(lambda t: t.latlon),
                 )
             ]
+        ).opts(color="red", alpha=0.1)
+        
+        # Plot the nodes
+        r *= gv.Points(coords, vdims="stored").opts(
+            height=height, width=width,
+            tools=["hover"],
+            size=np.log(dim("stored") + 25),
+            color="darkblue"
+#             size=10*dim("stored")/coords.stored.max()
         )
 
         return r

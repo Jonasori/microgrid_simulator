@@ -14,8 +14,6 @@ I wanted to start off by putting in place a purely intuitive, first-principles i
 - *Node attributes*: Right now, each node can be described by a set of fundamental attributes: [storage capacity, stored energy, neighbors]. From these, we can represent several relevant features for microgrids, namely inter-node transactions (a decrease in one node's stored energy leads to a (transmission-resistance-scaled) increase in that of another). Local generation can be represented by just increasing the `stored` value. Since each node is functionally independent here, it can individually resolve imbalances in its own system (excesses or deficits), and (pending further thought about incentive structures) set its own buy/sell prices accordingly (i.e. a node with a huge excess and not much projected use should be pretty much giving away its energy). Finally, each node keeps a log of its transactions, which will hopefully be useful for modeling later.
     - With these attributes, we can subclass our `Node` objects into different characteristic structures: a power planet has high storage capabilities, whereas an old house has none.
 
-- *Transmission losses*: As briefly mentioned above, I am representing transmission losses with a  
-
 - *Grid orchestration*: While all the nodes _can_ be run async, the reality is that simulations are a lot nicer when you move everything along in timesteps, so our `microgrid_sim.grid.EnergyGrid` object (our simulation orchestrator) does that. I think that's fine.
 
 ### Challenges:
@@ -25,5 +23,7 @@ I wanted to start off by putting in place a purely intuitive, first-principles i
 - *Forecasting*: The obvious end goal here is to get good at forecasting usage -- the representations only have value if they, well, have value.
 - *Units*: Sort them out! Not convinced everything is in the same unit right now.
 
+### End State:
+- I have a system that runs and seems to deliver some numbers and plots. Definitely not great, but vaguely functional. Simulating a centralized grid with three power stations (see notebook) with a very simple Euclidean-distance cost function (i.e. further-away sources are more costly) yields the expected results. Good!
 
-## Version 1: First Implementation ()
+## Version 1: First Implementation (Early Feb -)
