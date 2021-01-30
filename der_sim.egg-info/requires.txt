@@ -1,7 +1,0 @@
-numpy
-pandas
-matplotlib
-geoviews
-bokeh
-geopandas
-cartopy
